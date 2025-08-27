@@ -6,13 +6,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_all_properties():
-    """
-    Fetch all properties with Redis caching for 1 hour.
-    """
     properties = cache.get("all_properties")
 
     if properties is None:
-        # Cache miss → fetch from DB
         properties = list(
             Property.objects.all().values(
                 "id", "title", "description", "price", "location", "created_at"
@@ -32,13 +28,16 @@ def get_redis_cache_metrics():
         info = redis_conn.info("stats")
         hits = info.get("keyspace_hits", 0)
         misses = info.get("keyspace_misses", 0)
-        total = hits + misses
-        hit_ratio = (hits / total) if total > 0 else 0.0
+        total_requests = hits + misses
+
+        hit_ratio = 0.0
+        if total_requests > 0:
+            hit_ratio = round(hits / total_requests, 2)
 
         metrics = {
             "keyspace_hits": hits,
             "keyspace_misses": misses,
-            "hit_ratio": round(hit_ratio, 2),
+            "hit_ratio": hit_ratio,
         }
 
         logger.info(f"Redis Cache Metrics: {metrics}")
